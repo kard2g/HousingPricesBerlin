@@ -1,0 +1,11 @@
+This is a collaborative git repository in which real estate prices in Berlin are analyzed. 
+
+Contains:
+1.: WebScraper 
+Python webscraping to get the data.
+2.: PriceTrend 
+Reads and visualizes simple statistics like number of objects in the dataset, price mean, price median from the scraped data. 
+3.: LinearRegressionSimple
+Model learning for price prediction. The idea could be to either find a model which best predicts the price based on usefuel features. If there is a good model, it can be used to gain insight into the market. I personally would think that outliers might be interesting (e.g. the model predicts a high price and the actual price is way off, but this could be very hard to do). 
+
+In any way, the data can be used to work on a real life dataset.
