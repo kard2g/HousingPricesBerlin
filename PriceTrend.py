@@ -16,9 +16,15 @@ from os import listdir
 import statistics
 import math
 
-rawDataPath = 'rawData/personal/'
+rawDataPath = 'rawData'
+# rawDataPath = 'rawData/personal'
 rawDataDays = [f for f in listdir(rawDataPath) if isdir(join(rawDataPath, f))]
 rawDataDays = sorted(rawDataDays)
+try: 
+    rawDataDays.remove('personal')
+except ValueError: 
+    pass
+    
 df_dict = {}
 
 objectsInDataset = []
@@ -34,17 +40,20 @@ for day in rawDataDays:
     
     prices = df_tmp["purchasePrice"].astype(float)
     space = df_tmp["livingSpace"].astype(float)
+    zipCode = df_tmp["zipCode"].astype(float)
     pricesPerM2 = df_tmp['price_per_m2'].astype(float)
     
     # filtNan = prices.notnull()
     filtNan = ~np.isnan(prices) & ~np.isnan(pricesPerM2)
-    # filtPrice = prices < 4000000 # ex luxury filter
-    filtPrice = (prices > 500000) & (prices < 1000000) # our range filter
+    filtPrice = prices < 4000000 # ex luxury filter
+    # filtPrice = (prices > 500000) & (prices < 1000000) # our range filter
+    
     filtUseless = df_tmp["useless"]==False
     
     prices = prices[filtNan & filtPrice & filtUseless]
     space = space[filtNan & filtPrice & filtUseless]
     pricesPerM2 = pricesPerM2[filtNan & filtPrice & filtUseless]
+    zipCode = zipCode[filtNan & filtPrice & filtUseless]
     
     totalPrice = prices.sum()
     totalSpace = space.sum()
@@ -59,7 +68,7 @@ for day in rawDataDays:
     priceSdev = statistics.stdev(prices)
     spaceSdev = statistics.stdev(space)
     
-    df_save = pd.DataFrame({'prices': prices, 'space': space, 'pricesPerM2': pricesPerM2})
+    df_save = pd.DataFrame({'prices': prices, 'space': space, 'pricesPerM2': pricesPerM2, 'zipCode': zipCode})
     df_dict[day] = df_save
 
 
@@ -100,3 +109,4 @@ plt.xlabel('date')
 plt.ylim((int(math.floor(min(y) / 5.0))*5-1, int(math.ceil(max(y) / 5.0))*5+1 ))
 plt.title('mean price/m2 trend')
 plt.show()
+

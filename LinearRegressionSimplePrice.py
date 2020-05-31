@@ -13,32 +13,44 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
+import statistics
+import math
 
-rawDataPath = 'rawData/'
-rawDataDays = [f for f in listdir(rawDataPath) if isdir(join(rawDataPath, f))]
-rawDataDays.remove('personal')
-rawDataDay = max(rawDataDays)
-
-df_raw = pd.read_csv(rawDataPath + rawDataDay + '/ScrapedDataClean.csv', error_bad_lines=False, warn_bad_lines=False, sep=";", index_col=0, decimal=",")
-
-df_raw = df_raw[df_raw['purchasePrice']<600000]
-# df_raw = df_raw[df_raw['purchasePrice']>150000]
-df_raw = df_raw[df_raw['useless']!=True]
-
-y = df_raw['purchasePrice']
-fig, ax = plt.subplots()
-ax.yaxis.set_major_formatter(FormatStrFormatter('%1.0f'))
-plt.hist(y)
-plt.show()
+from UsefulFunctions import writeAllDataToDict, quickOpen
 
 #%%
 
-# TRAIN_COLUMNS = ['purchasePrice', 'livingSpace', 'zipCode', 'useless', 'lift', 'rented', 'newlyConst', 'noRooms', 'balcony', 'floor']
-TRAIN_COLUMNS = ['purchasePrice', 'livingSpace', 'zipCode', 'useless', 'lift', 'rented', 'balcony']
-df_model = df_raw[TRAIN_COLUMNS]
-df_model = df_model.dropna(axis=0)
+df_dict = writeAllDataToDict('rawData')
+days = list(df_dict.keys())
 
-# SCALE_COLUMNS = ['purchasePrice', 'livingSpace', 'zipCode']
+#%%
+
+day_tmp = days[-1]
+df_tmp = df_dict[day_tmp]
+
+#%% remove difficult segments
+# I would not define these as outliers, but as a segment that is difficult to analyze/predict, because there is very sparse data.
+# Partially its the high price segment, partially some specific sparse feature ranges
+# Its probably best to exclude them
+filt_outlier_price = df_tmp['purchasePrice']<2000000 
+filt_outlier_space = df_tmp['livingSpace']<250 
+filt_outlier_price_M2 = df_tmp['price_per_m2']<12000
+filt_outlier_floor1 = df_tmp['floor']<6
+filt_outlier_floor2 = df_tmp['floor']>=0
+filt_outlier_useless = df_tmp['useless']==False
+df_tmp = df_tmp[filt_outlier_price & filt_outlier_space & filt_outlier_price_M2 & filt_outlier_floor1 & filt_outlier_floor2 & filt_outlier_useless]
+
+#%%
+
+# TRAIN_COLUMNS = ['purchasePrice', 'livingSpace', 'price_per_m2', 'lift', 'balcony', 'floor', 'yearConstructed', 'lastRefurbish', 'regio3']
+TRAIN_COLUMNS = ['purchasePrice', 'livingSpace', 'price_per_m2']
+df_model = df_tmp[TRAIN_COLUMNS]
+
+
+# SCALE_COLUMNS = ['purchasePrice', 'livingSpace']
 # scaling_values = [df_model[SCALE_COLUMNS].mean(), df_model[SCALE_COLUMNS].max(), df_model[SCALE_COLUMNS].min()]
 # df_model[SCALE_COLUMNS] = (df_model[SCALE_COLUMNS] - df_model[SCALE_COLUMNS].mean())/(df_model[SCALE_COLUMNS].max() - df_model[SCALE_COLUMNS].min())
 

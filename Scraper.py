@@ -95,3 +95,54 @@ if startScraper:
     df_allFiles.to_csv(SavePath + "/ScrapedData.csv",sep=";",decimal=",",encoding = "utf-8",index_label="timestamp")
     
     print('\nData joining complete')
+    
+    print('Cleaning Data')
+    
+    importantColmuns = ['obj_scoutId', 'obj_livingSpace', 'obj_purchasePrice', 'obj_streetPlain', 'obj_balcony', 'obj_hasKitchen', 'obj_courtage' , 'obj_cellar', 'obj_houseNumber', 'obj_zipCode', 'obj_condition', 'obj_parkingSpace', 'obj_lift', 'obj_typeOfFlat', 'geo_plz', 'obj_noRooms', 'obj_rented', 'obj_floor', 'obj_numberOfFloors', 'obj_regio3', 'obj_yearConstructed', 'beschreibung', 'obj_lastRefurbished', 'obj_newlyConst', 'URL', 'obj_lastRefurbish']
+    
+    for nameCol in df_allFiles.columns:
+        
+        if not nameCol in importantColmuns:
+            df_allFiles = df_allFiles.drop(nameCol, 1)
+    
+    for nameCol in importantColmuns:
+        
+        if "obj_" in nameCol:
+            newNameCol = nameCol[4:]
+            df_allFiles.columns
+            df_allFiles.rename(columns={nameCol: newNameCol}, inplace=True)
+    
+    try:
+        df_allFiles["purchasePrice"] = df_allFiles["purchasePrice"].str.replace(",",".").astype(float)
+    except:
+        df_allFiles["purchasePrice"] = df_allFiles["purchasePrice"].astype(float)
+        
+    try:
+        df_allFiles["livingSpace"] = df_allFiles["livingSpace"].str.replace(",",".").astype(float)
+    except:
+        df_allFiles["livingSpace"] = df_allFiles["livingSpace"].astype(float)
+    
+    
+    df_allFiles["livingSpace"].replace(0,np.nan, inplace=True)
+    df_allFiles["purchasePrice"].replace(0,np.nan, inplace=True)
+    
+    df_allFiles["price_per_m2"] = df_allFiles["purchasePrice"]/df_allFiles["livingSpace"]
+    df_allFiles["price_per_m2"] = df_allFiles["price_per_m2"].apply(np.ceil)
+    
+    df_allFiles.sort_values("price_per_m2", axis=0, ascending=False, inplace=True, kind='quicksort', na_position='last')
+    df_allFiles = df_allFiles.reset_index(drop=True)
+    
+    df_allFiles["useless"] = df_allFiles["beschreibung"].str.contains("Dachgeschossrohlinge") | df_allFiles["beschreibung"].str.contains("Dachgeschossrohling") | df_allFiles["beschreibung"].str.contains("Rohling") | df_allFiles["beschreibung"].str.contains("Genossenschaft") | df_allFiles["beschreibung"].str.contains("Dachrohling") | df_allFiles["condition"].str.contains("need_of_renovation") | df_allFiles["beschreibung"].str.contains("Zwangsversteigerung") 
+    notUselessFilter = df_allFiles["useless"]==False
+    df_allFiles[["price_per_m2", "useless", "URL"]].loc[notUselessFilter].tail(20)
+    
+    #### convert objects to float or bool
+    CATEGORICAL_COLUMNS = ['streetPlain', 'condition', 'parkingSpace', 'typeOfFlat', 'regio3']
+    NUMERICAL_COLUMNS = ['purchasePrice', 'livingSpace', 'zipCode', 'noRooms', 'floor', 'numberOfFloors', 'yearConstructed', 'lastRefurbish']
+    BINARY_COLUMNS = ['balcony', 'hasKitchen', 'courtage', 'cellar', 'lift', 'rented', 'newlyConst']
+    
+    ## convert to numerical or binary
+    df_allFiles.loc[:,NUMERICAL_COLUMNS] = df_allFiles.loc[:,NUMERICAL_COLUMNS].astype(str).applymap(lambda x: x.replace(",", ".")).astype(float)
+    df_allFiles.loc[:,BINARY_COLUMNS] = df_allFiles.loc[:,BINARY_COLUMNS].astype(str).apply(lambda x: x.replace(["y", "n"], [True, False])).astype(bool)
+    
+    df_allFiles.to_csv(SavePath + "/ScrapedDataClean.csv",sep=";",decimal=".",encoding = "utf-8")
