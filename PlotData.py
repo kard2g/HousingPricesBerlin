@@ -15,8 +15,56 @@ df_dict = writeAllDataToDict('rawData')
 
 days = list(df_dict.keys())
 
-#%%
+#%% To begin with, plot general data from all the datasets
+numberOfObjects = []
+meanPrice = []
+medianPrice = []
+for day in days:
+    df_tmp = df_dict[day]
+    
+    filtNan = ~np.isnan(df_tmp['price_per_m2'])
+    
+    numberOfObjects.append(df_tmp.shape[0])
+    medianPrice.append(statistics.median(df_tmp['price_per_m2'][filtNan]))
+    meanPrice.append(statistics.mean(df_tmp['price_per_m2'][filtNan]))
+    
 
+#%% plot: number of objects
+
+lightgrey = (0.6, 0.6, 0.6)
+darkgrey = (0.2, 0.2, 0.2)
+lightred = (0.98, 0.63, 0.48)
+darkred = (0.55, 0.0, 0.0)
+
+x = days
+y = numberOfObjects
+
+plt.plot(x, y, '--o', color = lightgrey, markersize=8, markerfacecolor = darkgrey, markeredgecolor = darkgrey)
+plt.xlabel('day')
+plt.title('number of objects in dataset')
+plt.show()
+
+#%% plot: median price per square meter
+
+x = days
+y1 = medianPrice
+y2 = meanPrice
+
+plt.plot(x, y1, '--o', color = lightgrey, markersize=8, markerfacecolor = darkgrey, markeredgecolor = darkgrey)
+plt.xlabel('day')
+plt.ylabel('Euros')
+plt.title('median price wo filter')
+plt.show()
+
+#%% plot: median price per square meter
+
+plt.plot(x, y2, '--o', color = lightred, markersize=8, markerfacecolor = darkred, markeredgecolor = darkred)
+plt.xlabel('day')
+plt.ylabel('Euros')
+plt.title('mean price wo filter')
+plt.show()
+
+#%%
 day_tmp = days[-1]
 
 # filt_space = df_dict[day_tmp].livingSpace>100
@@ -39,6 +87,10 @@ filt_outlier_floor1 = df_tmp['floor']<6
 filt_outlier_floor2 = df_tmp['floor']>=0
 filt_outlier_useless = df_tmp['useless']==False
 df_tmp = df_tmp[filt_outlier_price & filt_outlier_space & filt_outlier_price_M2 & filt_outlier_floor1 & filt_outlier_floor2 & filt_outlier_useless]
+
+
+#%%
+print('There are ' + str(df_tmp.shape[0]) + ' objects in the ' + str(day_tmp) + ' dataset')
 
 #%% first plot: price over living space
 x = df_tmp['livingSpace'].astype(float)
