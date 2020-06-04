@@ -6,42 +6,48 @@ Created on Mon May 25 19:24:37 2020
 
 import pandas as pd
 import numpy as np
+import statistics
+import math
 from os import listdir
 from os.path import isfile, join, isdir
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
-import matplotlib.pyplot as plt
-from matplotlib.ticker import FormatStrFormatter
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
-import statistics
-import math
-
-from UsefulFunctions import writeAllDataToDict, quickOpen
-
-#%%
-
-df_dict = writeAllDataToDict('rawData')
-days = list(df_dict.keys())
+import datetime
+import matplotlib.dates as mdates
+from UsefulFunctions import quickOpen
 
 #%%
 
-day_tmp = days[-1]
+rawDataPath = 'rawData'
+rawDataDays = [f for f in listdir(rawDataPath) if isdir(join(rawDataPath, f))]
+rawDataDays = sorted(rawDataDays)
+try: 
+    rawDataDays.remove('personal')
+except ValueError: 
+    pass
+try: 
+    rawDataDays.remove('summarizedData')
+except ValueError: 
+    pass
+
+#%%
+
+try:
+    df_dict = np.load(rawDataPath + "/summarizedData/summarizedDataTill_" + rawDataDays[-1] + ".npy",allow_pickle='TRUE').item()
+    df_meta = np.load(rawDataPath + "/summarizedData/summarizedMetaDataTill_" + rawDataDays[-1] + ".npy",allow_pickle='TRUE').item()
+    print('Data from ' + str(rawDataDays[-1]) + ' loaded (newest possible).')
+except:
+    print('Newest data not available. Please run CleanData.py first.')
+
+
+#%%
+
+day_tmp = rawDataDays[-1]
 df_tmp = df_dict[day_tmp]
-
-#%% remove difficult segments
-# I would not define these as outliers, but as a segment that is difficult to analyze/predict, because there is very sparse data.
-# Partially its the high price segment, partially some specific sparse feature ranges
-# Its probably best to exclude them
-filt_outlier_price = df_tmp['purchasePrice']<2000000 
-filt_outlier_space = df_tmp['livingSpace']<250 
-filt_outlier_price_M2 = df_tmp['price_per_m2']<12000
-filt_outlier_floor1 = df_tmp['floor']<6
-filt_outlier_floor2 = df_tmp['floor']>=0
-filt_outlier_useless = df_tmp['useless']==False
-df_tmp = df_tmp[filt_outlier_price & filt_outlier_space & filt_outlier_price_M2 & filt_outlier_floor1 & filt_outlier_floor2 & filt_outlier_useless]
 
 #%%
 

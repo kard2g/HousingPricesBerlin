@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from os.path import isfile, join, isdir
 from os import listdir
+import statistics
 
 rawDataPath = 'rawData'
 rawDataDays = [f for f in listdir(rawDataPath) if isdir(join(rawDataPath, f))]
@@ -10,57 +11,68 @@ try:
     rawDataDays.remove('personal')
 except ValueError: 
     pass
+try: 
+    rawDataDays.remove('summarizedData')
+except ValueError: 
+    pass
 
-for day in rawDataDays:
+#%%
 
-    savePath = "rawData/" + day
-    df = pd.read_csv(savePath + "/ScrapedData.csv", error_bad_lines=False, warn_bad_lines=False, sep=";")
+# 
+
+try:
+    df_dict= np.load(rawDataPath + "/summarizedData/summarizedDataTill_" + rawDataDays[-1] + ".npy",allow_pickle='TRUE').item()
+    df_meta= np.load(rawDataPath + "/summarizedData/summarizedMetaDataTill_" + rawDataDays[-1] + ".npy",allow_pickle='TRUE').item()
+    print('Latest data already exists in rawData/summarizedData. \nRemove those files if you want to repeat the cleaning process.')
+except:
+
+    df_dict = {}
+    df_meta = {}
     
-    importantColmuns = ['obj_scoutId', 'obj_livingSpace', 'obj_purchasePrice', 'obj_streetPlain', 'obj_balcony', 'obj_hasKitchen', 'obj_courtage' , 'obj_cellar', 'obj_houseNumber', 'obj_zipCode', 'obj_condition', 'obj_parkingSpace', 'obj_lift', 'obj_typeOfFlat', 'geo_plz', 'obj_noRooms', 'obj_rented', 'obj_floor', 'obj_numberOfFloors', 'obj_regio3', 'obj_yearConstructed', 'beschreibung', 'obj_lastRefurbished', 'obj_newlyConst', 'URL', 'obj_lastRefurbish', 'obj_yearConstructed', 'obj_regio3']
-    
-    for nameCol in df.columns:
+    objectsInDataset = []
+    medianPricePerM2 = []
+    meanPricePerM2 = []
+    for day in rawDataDays:
         
-        if not nameCol in importantColmuns:
-            df = df.drop(nameCol, 1)
-    
-    for nameCol in importantColmuns:
+        df_tmp = pd.read_csv(rawDataPath + "/" + day + "/ScrapedDataClean.csv", error_bad_lines=False, warn_bad_lines=False, sep=";", index_col=0, decimal=",")
+                
+        prices = df_tmp["purchasePrice"].astype(float)
+        space = df_tmp["livingSpace"].astype(float)
+        zipCode = df_tmp["zipCode"].astype(float)
+        pricesPerM2 = df_tmp['price_per_m2'].astype(float)
+        floor = df_tmp['floor'].astype(float)
         
-        if "obj_" in nameCol:
-            newNameCol = nameCol[4:]
-            df.columns
-            df.rename(columns={nameCol: newNameCol}, inplace=True)
-    
-    try:
-        df["purchasePrice"] = df["purchasePrice"].str.replace(",",".").astype(float)
-    except:
-        df["purchasePrice"] = df["purchasePrice"].astype(float)
+        filters = {}
         
-    try:
-        df["livingSpace"] = df["livingSpace"].str.replace(",",".").astype(float)
-    except:
-        df["livingSpace"] = df["livingSpace"].astype(float)
+        filtNan = ~np.isnan(prices) & ~np.isnan(pricesPerM2)
+        filtPrice = prices < 2000000 # ex luxury filter
+        filtSpace = space<250
+        filtUseless = df_tmp["useless"]==False
+        filtPricePerM2 = pricesPerM2 < 13000
+        filtFloor1 = df_tmp.floor.astype(float) < 6
+        filtFloor2 = df_tmp.floor.astype(float) >= 0
+       
+        filtAll = filtNan & filtPrice & filtSpace & filtPricePerM2 & filtUseless & filtFloor1 & filtFloor2
+        
+        prices = prices[filtAll]
+        space = space[filtAll]
+        pricesPerM2 = pricesPerM2[filtAll]
+        zipCode = zipCode[filtAll]
+        
+        totalPrice = prices.sum()
+        totalSpace = space.sum()        
+        priceSdev = statistics.stdev(prices)
+        spaceSdev = statistics.stdev(space) 
+        medianPricePerM2.append(statistics.median(pricesPerM2))
+        meanPricePerM2.append(statistics.mean(pricesPerM2))
+        objectsInDataset.append(prices.size)
+        
+        df_dict[day] = df_tmp[filtAll]
+        
+        df_save_meta = pd.DataFrame({'medianPricePerM2': medianPricePerM2, 'meanPricePerM2': meanPricePerM2, 'objectsInDataset': objectsInDataset, 'priceSdev': priceSdev, 'spaceSdev': spaceSdev})
+        df_meta[day] = df_save_meta
     
     
-    df["livingSpace"].replace(0,np.nan, inplace=True)
-    df["purchasePrice"].replace(0,np.nan, inplace=True)
-    
-    df["price_per_m2"] = df["purchasePrice"]/df["livingSpace"]
-    df["price_per_m2"] = df["price_per_m2"].apply(np.ceil)
-    
-    df.sort_values("price_per_m2", axis=0, ascending=False, inplace=True, kind='quicksort', na_position='last')
-    df = df.reset_index(drop=True)
-    
-    df["useless"] = df["beschreibung"].str.contains("Dachgeschossrohlinge") | df["beschreibung"].str.contains("Dachgeschossrohling") | df["beschreibung"].str.contains("Rohling") | df["beschreibung"].str.contains("Genossenschaft") | df["beschreibung"].str.contains("Dachrohling") | df["condition"].str.contains("need_of_renovation") | df["beschreibung"].str.contains("Zwangsversteigerung") 
-    notUselessFilter = df["useless"]==False
-    df[["price_per_m2", "useless", "URL"]].loc[notUselessFilter].tail(20)
-    
-    #### convert objects to float or bool
-    CATEGORICAL_COLUMNS = ['streetPlain', 'condition', 'parkingSpace', 'typeOfFlat', 'regio3']
-    NUMERICAL_COLUMNS = ['purchasePrice', 'livingSpace', 'zipCode', 'noRooms', 'floor', 'numberOfFloors', 'yearConstructed', 'lastRefurbish']
-    BINARY_COLUMNS = ['balcony', 'hasKitchen', 'courtage', 'cellar', 'lift', 'rented', 'newlyConst']
-    
-    ## convert to numerical or binary
-    df.loc[:,NUMERICAL_COLUMNS] = df.loc[:,NUMERICAL_COLUMNS].astype(str).applymap(lambda x: x.replace(",", ".")).astype(float)
-    df.loc[:,BINARY_COLUMNS] = df.loc[:,BINARY_COLUMNS].astype(str).apply(lambda x: x.replace(["y", "n"], [True, False])).astype(bool)
-    
-    df.to_csv(savePath + "/ScrapedDataClean.csv",sep=";",decimal=".",encoding = "utf-8")
+    np.save(rawDataPath + "/summarizedData/summarizedDataTill_" + rawDataDays[-1] + ".npy", df_dict) 
+    np.save(rawDataPath + "/summarizedData/summarizedMetaDataTill_" + rawDataDays[-1] + ".npy", df_meta)
+    print('Data read and saved')
